@@ -534,3 +534,23 @@ def train(self, ob_no, ac_na, re_n, next_ob_no, terminal_n):     # 传进来的�
 
 `num_critic_updates_per_agent_update` 和 `num_actor_updates_per_agent_update` 默认都是 1，
 所以 ② 和 ④ 各只跑一遍（② 内部自己有 100 步循环）。
+
+### ② 和 DQN 的 target network 是同一个思想
+
+"每 10 步重算一次 y"和 DQN"每 3000 次更新复制一次 target 网络"是**同一件事**：目标值不能跟着每一步梯度走，得冻一段时间。
+
+| | DQN | AC critic |
+|---|---|---|
+| 冻住的东西 | 一整个网络 `q_net_target`（θ⁻） | 一个张量 `target_n`（算好的 y 数组） |
+| 冻多久 | 3000 次参数更新 | 10 次参数更新 |
+| 怎么刷新 | `θ⁻ ← θ`，复制参数 | 用此刻的 φ 重新前向一遍算 y |
+| 刷新几次 | 整个训练过程中几百次 | 每轮 10 次（`ntu`） |
+
+数学上等价：DQN 冻住 θ⁻ 再每次算 `r + γ max Q(s'; θ⁻)`，和 AC 直接把 `r + γ V_φ(s')` 算出来存成常数，
+效果一样——都是"目标在一段时间内不动"。
+
+**为什么一个存网络、一个存数组：**
+- DQN 的数据每次训练从 replay buffer **随机换一批**，s' 每次不一样，得有个网络随时能对新 s' 算值，所以要存一整份参数。
+- AC 这一轮的 batch 是**固定的 1000 条**，s' 不变，直接把 1000 个 y 算出来存成数组就行。`with torch.no_grad()` 那行就是在做这件事。
+
+**AC critic 的 `with torch.no_grad(): target_n = ...` 就是一个"轻量版 target network"，只缓存输出值、不缓存参数，因为数据不换、不需要。**
