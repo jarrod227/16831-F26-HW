@@ -63,6 +63,65 @@ if self.num_param_updates % self.target_update_freq == 0:
 时间线示例（N = 1000）：第 1000 → 1999 步，学生从 φ_1000 学到 φ_1999，老师全程 φ⁻ = φ_1000；
 第 2000 步复印一次，老师变成 φ_2000。
 
+### 深入一点：不用 target network 会怎样
+
+**根源：bootstrapping（自举）。** 目标值 `y = r + γ·max Q(s',·)` 里有 Q 自己——用自己的估计改进自己的估计。
+表格版没事、网络版出事，原因是**泛化**：
+
+```
+表格：改 Q[s][a] 一格        → Q[s'][·] 不动          → 目标稳
+网络：改 θ 让 Q(s,a;θ) 上升  → Q(s',·;θ) 也跟着变     → 目标跟着动
+```
+
+网络把相邻状态"绑"在一起了。s 和 s' 通常很像（飞船只动了一帧），参数一改，两者输出同向变化。
+
+**正反馈环。** 某个 (s,a) 的目标比当前估计高，你把 Q(s,a) 往上推 → Q(s',·) 顺带推高 →
+下一轮目标 `r + γ·max Q(s',·)` 更高 → 又把 Q(s,a) 推高 → ……
+实际表现：Q 值一路飙升到离谱的数字，策略崩掉，return 曲线突然跳水。
+这是 2015 年以前 Q-learning 配神经网络一直不稳定的主要原因之一。
+
+**冻住目标那份 Q，环就断了：**
+
+```
+y = r + γ · max Q(s', · ; θ⁻)        ← θ⁻ 是冻住的旧参数
+loss = ( Q(s, a; θ) − y )²            ← 只有 θ 在动
+```
+
+θ 怎么改都不影响 y。每个训练阶段内目标是**常数**，退化成普通监督回归——稳定。
+
+```python
+# dqn_critic.py
+qa_tp1_values = self.q_net_target(next_ob_no)     # 用 θ⁻ 算目标
+...
+target = target.detach()                          # 双保险：不往 θ⁻ 传梯度
+loss = self.loss(q_t_values, target)              # q_t_values 来自 q_net(θ)
+```
+
+**为什么要定期更新 θ⁻，而不是永远冻着。** θ⁻ 算的 y 是基于"旧 Q"的估计。学生学了一阵后比老师强了，
+再向老师靠拢就是向一个过时的目标靠拢。所以周期性把学生复印成新老师：
+
+```python
+# dqn_agent.py
+if self.num_param_updates % self.target_update_freq == 0:    # LunarLander 每 3000 次更新
+    self.critic.update_target_network()                       # θ⁻ ← θ
+```
+
+这叫 **hard update**（整个复制）。另一种常见做法 **soft update**（Polyak）：`θ⁻ ← τθ + (1−τ)θ⁻`，
+每步挪一点点，τ ≈ 0.005。hw3 用 hard。
+
+**`target_update_freq` 是权衡：**
+
+| 太小（如 1） | 太大（如 100 万） |
+|---|---|
+| 退化成没有 target network，正反馈回来了 | 老师永远过时，学生学得极慢 |
+
+LunarLander 用 3000，Atari 用 10000。
+
+**和 double-Q 的关系：** target network 解决**目标在动**（稳定性），double-Q 解决**目标偏高**（过估计）。
+Double-Q 建立在 target network 之上——它需要两个不同的网络分别"挑"和"评"，target network 恰好提供了第二个。
+
+**一句话：target network = 把"用自己教自己"改成"用上一版的自己教自己"，每隔 N 步把这一版升级一次。**
+
 ## 4. 解法二：Double-Q —— 把"挑"和"评"拆开
 
 ### 问题：max 会偏高
