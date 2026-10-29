@@ -192,6 +192,39 @@ def train(self, ob_no, ac_na, re_n, next_ob_no, terminal_n):
 | "目标里有自己"怎么处理 | 冻结的 target 网络 | 每 ngsptu 步重算一次目标 |
 | 数据 | replay buffer，off-policy | 当前策略刚采的数据，on-policy |
 
+### "AC 就是 DQN 把 Q 换成 V"？——对了一半
+
+**一样的部分：critic 的 TD 回归**
+
+```
+DQN   : Q(s,a)  →  r + γ · max_a' Q(s',a')
+Critic: V(s)    →  r + γ · V(s')
+```
+
+两边都是"网络输出 → 向 `r + γ·(下一步的自己)` 回归"，都有"目标里有自己"的问题，
+都用"把目标冻住一会儿"处理（DQN 用 target 网络，这里每 ngsptu 步重算一次）。
+
+细微差别：DQN 的目标里有 **max**，V 的目标里没有。V 定义就是"按当前策略走"，
+下一步做什么由 π 决定，不用挑最优。所以 critic 不存在"过估计"问题，不需要 double 技巧。
+
+**不一样的部分：学完之后怎么用**
+
+| | DQN | Actor-Critic |
+|---|---|---|
+| 学到 Q/V 之后 | **直接完事**。策略就是 `argmax_a Q(s,a)` | **只走了一半**。V 不带动作，没法直接选动作 |
+| 动作怎么来 | 从 Q 里 argmax 出来 | 另有策略网络 π，用 `A = r + γV(s') − V(s)` 做策略梯度训它 |
+
+DQN 是**一个网络、一个更新公式**；actor-critic 是**两个网络、两个更新公式**：
+
+```
+① critic:  V(s) 向 r + γV(s') 回归            ← 和 DQN 相似
+② actor :  ∇ log π(a|s) · [r + γV(s') − V(s)]  ← DQN 里没有，来自 hw2
+```
+
+"Q 变成 V、更新公式相似"只描述了 ①。真正的新东西是 ②：
+**V 只负责给动作打分，它自己不选动作，选动作的是 actor。**
+这也是它能处理连续动作的原因——没法对连续 a 取 max，但策略网络可以直接输出一个高斯分布。
+
 ## 7. 实验里的现象
 
 CartPole（Q2）跑出来 `Loss_Critic` 几十到两百、`Loss_Actor` 接近 0 且正负跳动，都正常：
