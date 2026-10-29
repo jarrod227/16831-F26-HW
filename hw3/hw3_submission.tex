@@ -78,9 +78,9 @@ backgroundcolor = \color{light-yellow}
 \section{Question 1: DQN and DDQN (LunarLander-v3) - [7.5 points]}
 \begin{answer}[title=Question 1,height=9.5cm,width=\linewidth]
 \centering
-\includegraphics[height=7.2cm]{figures/q1.png}
+\includegraphics[height=7cm]{figures/q1.png}
 
-{\footnotesize LunarLander-v3, 3 seeds each (\texttt{q1\_dqn\_\{1,2,3\}}, \texttt{q1\_doubledqn\_\{1,2,3\}}). Solid: mean \texttt{Train\_AverageReturn}, shaded: $\pm$1 std across seeds; dashed: mean \texttt{Train\_BestReturn}. Default hyperparameters. Double DQN selects $a'$ with the online network and evaluates it with the target network, which reduces the max-induced overestimation of vanilla DQN and gives a more stable / higher late-training return.}
+{\footnotesize LunarLander-v3, 3 seeds each, default hyperparameters. Solid: mean \texttt{Train\_AverageReturn} ($\pm$1 std shaded); dashed: mean \texttt{Train\_BestReturn}. DDQN picks $a'$ with the online net and evaluates it with the target net, reducing the max-induced overestimation of DQN; DQN peaks then dips, DDQN is steadier and ends higher.}
 \end{answer}
 
 \section{Question 2: Actor-Critic (CartPole-v0) - [3.75 points]}
