@@ -152,15 +152,138 @@ DQN 只查老师一张表，直接取最大的 1.5。
 **target network 解决"目标在动"，double-Q 解决"目标偏高"。**
 DDQN 和老师更新频率无关，只是把"挑动作"从老师手里换给了学生。
 
-## 5. 其余几行
+## 5. ε-greedy：数据从哪来
+
+### 问题
+
+Q 网络刚初始化时输出是随机的。如果一开始就严格按 `argmax Q` 选动作，agent 会一直重复它误以为最好的
+那几个动作，永远不试别的，Q 值也就永远不知道别的动作好不好。
+这叫**探索（exploration）vs 利用（exploitation）**的矛盾。
+
+### 解法
+
+每一步掷个骰子：
+
+```
+以 ε 的概率   → 随机选一个动作           （探索）
+以 1−ε 的概率 → 选 argmax_a Q(s, a)      （利用）
+```
+
+ε 随时间衰减。LunarLander 的 schedule（`infrastructure/dqn_utils.py` → `lander_exploration_schedule`）：
+
+```python
+PiecewiseSchedule([(0, 1), (num_timesteps * 0.1, 0.02)], outside_value=0.02)
+#  第 0 步 ε=1（全随机）→ 线性降到第 50k 步 ε=0.02 → 之后保持 0.02
+```
+
+一开始啥也不懂就乱试；越学越有把握，就越多听 Q 的；永远留 2% 随机，防止困在局部最优。
+
+### 代码（`agents/dqn_agent.py` → `step_env`）
+
+```python
+eps = self.exploration.value(self.t)                    # 查 schedule 拿当前 ε
+
+perform_random_action = (np.random.random() < eps) or (self.t < self.learning_starts)
+if perform_random_action:
+    action = np.random.randint(self.num_actions)        # 探索：随机 0~3
+else:
+    enc_last_obs = self.replay_buffer.encode_recent_observation()
+    action = self.actor.get_action(enc_last_obs)        # 利用：argmax Q
+```
+
+多出来的 `self.t < self.learning_starts`（前 1000 步）：网络还没开始训练，Q 值纯随机，argmax 没意义，
+不如全随机先把 buffer 填一些数据。
+
+ε-greedy **只在训练时采数据用**。评估时（`ArgMaxPolicy.get_action`）永远是纯 argmax，没有随机。
+
+## 6. Replay buffer：数据怎么用
+
+### 问题
+
+最朴素的做法：走一步 → 拿这一个 transition (s, a, r, s') 更新一次网络 → 扔掉。两个毛病：
+
+1. **相邻样本高度相关**。连续几步的状态几乎一样（飞船位置只差一点）。SGD 假设样本独立同分布，
+   喂一串相关样本会让梯度一直往一个方向推，训练不稳定。
+2. **每个样本只用一次就扔**，浪费。和环境交互是最贵的部分。
+
+### 解法
+
+把每一步的 transition 存进一个大数组（LunarLander 容量 50000），每次训练从里面**随机抽** 32 条来更新：
+
+```
+       ┌──────────────────────────────────────┐
+环境 → │ (s,a,r,s',done) (s,a,r,s',done) ...  │ → 随机抽 batch → 训练 q_net
+       └──────────────────────────────────────┘
+              replay buffer（环形，满了覆盖最老的）
+```
+
+- 随机抽 → 一个 batch 里的样本来自不同时间、不同 episode，相关性打散
+- 一条数据能被抽到很多次 → 样本利用率高
+- 这是 DQN 叫 **off-policy** 的原因：训练用的数据是**以前的策略**（ε 更大、Q 更差时）采的，
+  不是当前策略。Q-learning 的目标 `r + γ max Q(s',·)` 不依赖"当时是怎么选 a 的"，所以旧数据照样能用。
+  Actor-critic 做不到这一点，它的策略梯度必须用当前策略采的数据（on-policy）。
+
+### 代码
+
+buffer 叫 `MemoryOptimizedReplayBuffer`，为了省内存（Atari 每帧是图片），它把"存观测"和"存动作/奖励"
+拆成两步，所以 `step_env` 的顺序是：
+
+```python
+# ① 先存当前观测，拿到一个槽位下标
+self.replay_buffer_idx = self.replay_buffer.store_frame(self.last_obs)
+
+# ② 用 buffer 里最近的观测来选动作（Atari 要叠 4 帧，LunarLander 就 1 帧）
+enc_last_obs = self.replay_buffer.encode_recent_observation()
+action = self.actor.get_action(enc_last_obs)
+
+# ③ 执行动作
+self.last_obs, reward, done, info = self.env.step(action)
+
+# ④ 把动作、奖励、done 存到刚才那个槽位，补齐这条 transition
+self.replay_buffer.store_effect(self.replay_buffer_idx, action, reward, done)
+
+# ⑤ episode 结束就 reset
+if done:
+    self.last_obs = self.env.reset()
+```
+
+为什么先 `store_frame` 再 `encode_recent_observation`：encode 是"从 buffer 里取最近几帧"，
+所以当前这帧得先放进去。`s'` 不需要单独存——它就是 buffer 里下一个槽位的 frame，`sample` 时按下标自动拼出来。
+
+训练那边（`train`）：
+
+```python
+if (self.t > self.learning_starts            # 前 1000 步只采不训
+        and self.t % self.learning_freq == 0  # LunarLander 每步训一次
+        and self.replay_buffer.can_sample(self.batch_size)):
+    log = self.critic.update(ob_no, ac_na, next_ob_no, re_n, terminal_n)   # 这 5 个就是 sample 出的 batch
+
+    if self.num_param_updates % self.target_update_freq == 0:   # 每 3000 次更新换一次老师
+        self.critic.update_target_network()
+    self.num_param_updates += 1
+```
+
+`ob_no, ac_na, ...` 是 `rl_trainer` 调 `agent.sample(32)` 从 buffer 随机抽出来传进来的。
+
+## 7. 三大件合起来看
+
+```
+每一步：
+  ε-greedy 选动作 → 环境 → transition 存入 buffer       （采数据，带探索）
+  从 buffer 随机抽 32 条 → 算 target → 更新 q_net       （训练，去相关、重复利用）
+  每 3000 次更新 → q_net_target ← q_net                 （换老师）
+```
+
+DQN 的三大件——**ε-greedy、replay buffer、target network**——分别对应"数据怎么采"、"数据怎么用"、
+"目标怎么稳"。前两个解决数据问题，第三个解决优化问题。Double-Q 是在第三个之上再修"目标偏高"。
+
+## 8. 其余几行
 
 - `(1 - terminal_n)`：终止状态没有下一步，把 `γ·Q(s',·)` 截成 0，y = r。
 - `target.detach()`：目标值不参与反向传播，梯度只流进 `q_net`。
-- ε-greedy（`agents/dqn_agent.py`）：以 ε 概率随机探索，ε 按 `exploration_schedule` 随时间衰减；
-  `t < learning_starts` 时也全随机，先把 replay buffer 填起来。
 - `argmax_policy.py`：评估/执行时直接取 `q_net` 输出的 argmax。
 
-## 6. 实验里预期看到的
+## 9. 实验里预期看到的
 
 Q1 画 DQN vs DDQN 各 3 seed 均值 ± std。预期：DQN 可能更早冲到 ~125 然后回落或震荡大，
 DDQN 上升稍慢但更稳、后期更高。写报告时用第 4 节"过估计"的逻辑解释。
