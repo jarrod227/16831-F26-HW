@@ -453,3 +453,84 @@ critic: V_φ ≈ V^π     min_φ ( V_φ(s) − [r + γV_φ(s')] )²     ← Bell
 ```
 
 Actor 的梯度公式是**从目标函数严格推出来的**，不是拍脑袋设计的；critic 只是把公式里那个权重 A 算得更稳一点。
+
+## 11. 第 k 轮迭代逐步展开：θ 和 φ 各是哪一版
+
+![第 k 轮参数流转](ac_iteration.svg)
+
+第 k 轮开始时，actor 参数是 **θ_k**，critic 参数是 **φ_k**。一轮里面它们各变一次：θ_k → θ_{k+1}，φ_k → φ_{k+1}。
+
+### ① 采数据（用 θ_k，什么都不更新）
+
+```
+s_0 = env.reset()
+for t = 0, 1, 2, ...:
+    a_t ~ π_{θ_k}(·|s_t)              ← 用当前 actor 采样一个动作（有随机性）
+    s_{t+1}, r_t, done_t = env.step(a_t)
+    记下 (s_t, a_t, r_t, s_{t+1}, done_t)
+    done 就 reset 开新一局，直到总步数 ≥ 1000
+```
+
+得到一个 batch，约 1000 条 transition。**这批数据是 π_{θ_k} 产生的**，只在这一轮用，下一轮扔掉重采（on-policy）。
+
+### ② 训 critic（φ_k → φ_{k+1}，θ 不动）
+
+只碰 φ。目标是让 V_φ 变成"**π_{θ_k} 这个策略**的价值函数"——数据是 π_{θ_k} 采的，V 学出来自然就是对它的评估。
+
+```
+φ ← φ_k
+for i = 0 .. 99:                                      # ntu × ngsptu = 10 × 10
+    if i % 10 == 0:                                   # 每 10 步重算一次目标
+        y_t = r_t + γ·V_φ(s_{t+1})·(1−done_t)   对所有 t   ← 用此刻的 φ 算，然后冻住
+    φ ← φ − β·∇_φ Σ_t ( V_φ(s_t) − y_t )²            # 向冻住的 y 回归一步
+φ_{k+1} ← φ
+```
+
+φ 在这一步内部变了 100 次。目标 y 每 10 步跟着 φ 刷新一次，共刷新 10 次。
+
+### ③ 算 advantage（用 φ_{k+1}，什么都不更新）
+
+```
+A_t = r_t + γ·V_{φ_{k+1}}(s_{t+1})·(1−done_t) − V_{φ_{k+1}}(s_t)     对所有 t
+```
+
+用的是**刚训好的 φ_{k+1}**，不是 φ_k。先把 critic 调准，再让它打分。
+代码里 `estimate_advantage` 在 `critic.update` 之后调用，就是这个顺序。
+
+### ④ 训 actor（θ_k → θ_{k+1}，φ 不动）
+
+```
+θ_{k+1} = θ_k + α · (1/N) Σ_t ∇_θ log π_θ(a_t|s_t)|_{θ=θ_k} · A_t
+```
+
+A_t 是上一步算好的常数（numpy 数组，不带梯度）。梯度只流向 θ。
+
+### 回到 ①，用 θ_{k+1} 采新数据
+
+### 回答"π_θ 是 π_k 吗？φ 是 φ_k 吗？"
+
+| 符号 | 第 k 轮里是什么 |
+|---|---|
+| π_θ 在 ① | π_{θ_k}，采数据用的 |
+| φ 在 ② 开始 | φ_k，训练起点 |
+| φ 在 ② 结束 | φ_{k+1}（中间变了 100 次） |
+| V_φ 在 ③ | V_{φ_{k+1}} |
+| θ 在 ④ | 从 θ_k 更新到 θ_{k+1} |
+
+**π_θ 是 π_{θ_k}（这一轮固定不变，直到 ④ 才更新）；φ 不是固定的 φ_k，它在 ② 里从 φ_k 一路更新到 φ_{k+1}。**
+
+### 和代码对照
+
+```python
+def train(self, ob_no, ac_na, re_n, next_ob_no, terminal_n):     # 传进来的就是 ① 采的 batch
+    for _ in range(num_critic_updates_per_agent_update):           # ② φ_k → φ_{k+1}
+        critic_loss = self.critic.update(ob_no, ac_na, next_ob_no, re_n, terminal_n)
+
+    adv_n = self.estimate_advantage(ob_no, next_ob_no, re_n, terminal_n)   # ③ 用 φ_{k+1}
+
+    for _ in range(num_actor_updates_per_agent_update):            # ④ θ_k → θ_{k+1}
+        actor_loss = self.actor.update(ob_no, ac_na, adv_n)
+```
+
+`num_critic_updates_per_agent_update` 和 `num_actor_updates_per_agent_update` 默认都是 1，
+所以 ② 和 ④ 各只跑一遍（② 内部自己有 100 步循环）。

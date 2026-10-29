@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="460" viewBox="0 0 900 460" font-family="Helvetica, Arial, sans-serif" font-size="14">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+  </defs>
+  <rect width="900" height="460" fill="#ffffff"/>
+  <text x="450" y="28" text-anchor="middle" font-size="18" font-weight="bold" fill="#222">Actor-Critic 第 k 轮迭代：参数流转</text>
+
+  <!-- Actor row -->
+  <rect x="40" y="70" width="130" height="50" rx="8" fill="#dbe9ff" stroke="#2f6fd6" stroke-width="2"/>
+  <text x="105" y="92" text-anchor="middle" font-weight="bold" fill="#1b4a99">Actor</text>
+  <text x="105" y="110" text-anchor="middle" fill="#1b4a99">θ_k</text>
+
+  <rect x="730" y="70" width="130" height="50" rx="8" fill="#dbe9ff" stroke="#2f6fd6" stroke-width="2"/>
+  <text x="795" y="92" text-anchor="middle" font-weight="bold" fill="#1b4a99">Actor</text>
+  <text x="795" y="110" text-anchor="middle" fill="#1b4a99">θ_{k+1}</text>
+
+  <!-- Data box -->
+  <rect x="40" y="200" width="200" height="70" rx="8" fill="#fff4d6" stroke="#d99a1a" stroke-width="2"/>
+  <text x="140" y="225" text-anchor="middle" font-weight="bold" fill="#8a5d00">Batch（≈1000 条）</text>
+  <text x="140" y="245" text-anchor="middle" fill="#8a5d00">(s_t, a_t, r_t, s_{t+1}, done_t)</text>
+  <text x="140" y="262" text-anchor="middle" font-size="12" fill="#8a5d00">由 π_{θ_k} 采样，只用这一轮</text>
+
+  <!-- Critic boxes -->
+  <rect x="320" y="200" width="130" height="70" rx="8" fill="#e3f5e1" stroke="#3a9a3a" stroke-width="2"/>
+  <text x="385" y="225" text-anchor="middle" font-weight="bold" fill="#1f6b1f">Critic</text>
+  <text x="385" y="245" text-anchor="middle" fill="#1f6b1f">φ_k</text>
+  <text x="385" y="262" text-anchor="middle" font-size="12" fill="#1f6b1f">训练起点</text>
+
+  <rect x="530" y="200" width="130" height="70" rx="8" fill="#e3f5e1" stroke="#3a9a3a" stroke-width="2"/>
+  <text x="595" y="225" text-anchor="middle" font-weight="bold" fill="#1f6b1f">Critic</text>
+  <text x="595" y="245" text-anchor="middle" fill="#1f6b1f">φ_{k+1}</text>
+  <text x="595" y="262" text-anchor="middle" font-size="12" fill="#1f6b1f">训了 100 步</text>
+
+  <!-- Advantage box -->
+  <rect x="730" y="200" width="130" height="70" rx="8" fill="#f6e1f0" stroke="#b03a8a" stroke-width="2"/>
+  <text x="795" y="225" text-anchor="middle" font-weight="bold" fill="#7a1f5e">Advantage</text>
+  <text x="795" y="245" text-anchor="middle" fill="#7a1f5e">A_t（常数）</text>
+  <text x="795" y="262" text-anchor="middle" font-size="12" fill="#7a1f5e">用 φ_{k+1} 算</text>
+
+  <!-- Arrows -->
+  <!-- ① actor -> data -->
+  <line x1="105" y1="120" x2="105" y2="198" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="115" y="165" fill="#333">① 采数据</text>
+  <text x="115" y="182" font-size="12" fill="#555">a_t ~ π_{θ_k}(·|s_t)</text>
+
+  <!-- data -> critic -->
+  <line x1="240" y1="235" x2="318" y2="235" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ② critic k -> k+1 -->
+  <line x1="450" y1="235" x2="528" y2="235" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="489" y="222" text-anchor="middle" fill="#333">② 训 critic</text>
+  <text x="489" y="300" text-anchor="middle" font-size="12" fill="#555">for i in 0..99:</text>
+  <text x="489" y="316" text-anchor="middle" font-size="12" fill="#555">i%10==0 → 重算 y = r + γV_φ(s')</text>
+  <text x="489" y="332" text-anchor="middle" font-size="12" fill="#555">φ ← φ − β∇(V_φ(s) − y)²</text>
+
+  <!-- ③ critic k+1 -> advantage -->
+  <line x1="660" y1="235" x2="728" y2="235" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="694" y="222" text-anchor="middle" fill="#333">③ 算 A</text>
+  <text x="694" y="300" text-anchor="middle" font-size="12" fill="#555">A_t = r_t + γV(s_{t+1})</text>
+  <text x="694" y="316" text-anchor="middle" font-size="12" fill="#555">       − V(s_t)</text>
+
+  <!-- ④ advantage -> actor k+1 -->
+  <line x1="795" y1="198" x2="795" y2="122" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="805" y="150" fill="#333">④ 训 actor</text>
+  <text x="805" y="167" font-size="12" fill="#555">θ_{k+1} = θ_k +</text>
+  <text x="805" y="182" font-size="12" fill="#555">α·mean[∇logπ·A_t]</text>
+
+  <!-- θ_k also needed in ④ (dashed) -->
+  <line x1="170" y1="95" x2="728" y2="95" stroke="#2f6fd6" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <text x="450" y="88" text-anchor="middle" font-size="12" fill="#2f6fd6">θ_k 本身在这一轮不变，直到 ④ 才被更新</text>
+
+  <!-- loop back -->
+  <path d="M 795 120 L 795 60 L 105 60 L 105 68" fill="none" stroke="#999" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrow)"/>
+  <text x="450" y="50" text-anchor="middle" font-size="12" fill="#777">第 k+1 轮：θ_{k+1} 去采新数据，φ_{k+1} 作为新的训练起点</text>
+
+  <!-- Legend -->
+  <text x="40" y="400" font-size="13" fill="#333" font-weight="bold">每一轮各变一次：</text>
+  <text x="40" y="420" font-size="13" fill="#1b4a99">θ_k → θ_{k+1}（只在 ④ 变，一步梯度）</text>
+  <text x="40" y="440" font-size="13" fill="#1f6b1f">φ_k → φ_{k+1}（在 ② 内部变 100 次，目标每 10 步刷新）</text>
+  <text x="480" y="420" font-size="13" fill="#8a5d00">Batch 由 θ_k 采，③④ 都用这同一批数据，下一轮丢弃重采（on-policy）</text>
+  <text x="480" y="440" font-size="13" fill="#7a1f5e">A_t 是 numpy 常数，梯度只流向 θ，不流向 φ</text>
+</svg>
