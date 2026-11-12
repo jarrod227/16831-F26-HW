@@ -9,7 +9,7 @@ export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 
 launch() {  # launch <log name> <args...>
     name=$1; shift
-    nohup python $S "$@" > logs/$name.log 2>&1 &
+    nohup python -u $S "$@" > logs/$name.log 2>&1 &
     echo "started $name (pid $!)"
 }
 

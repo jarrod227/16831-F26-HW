@@ -13,47 +13,42 @@
 % {figures/q3_reacher.png}. Keep the image dimensions and answer blocks unchanged.
 \begin{document}
 \begin{center}{\Large Assignment 4: Model-Based Reinforcement Learning}\end{center}
-\textbf{Andrew ID:} YOUR ID\par
-\textbf{Collaborators (including AI tools, if applicable):} YOUR COLLABORATORS\par
+\textbf{Andrew ID:} jiayuy2\par
+\textbf{Collaborators (including AI tools, if applicable):} Claude (Anthropic), used as an AI assistant for code and explanations.\par
 \textbf{Total: 15 points.} Keep the answer and plot sizes unchanged.
 \section*{Problem 1: Dynamics Model Training (3.75 points)}
-\begin{answer}{Which model performs best, and why?}\end{answer}
+\begin{answer}{Which model performs best, and why?}
+\small The 2-layer, 250-unit network trained for 500 steps is best: final loss 0.127 and MPE 0.078, versus 0.173 / 0.29 for the 1$\times$32 network and 0.679 / 1.64 for the same 2$\times$250 network trained for only 5 steps. The cheetah dynamics are high-dimensional and nonlinear, so the larger network fits them better than the 32-unit one, whose small one-step errors compound into visible drift over the 10-step rollout. Capacity alone is not enough, though: after 5 gradient steps the large network is badly underfit and its open-loop predictions diverge almost immediately.
+\end{answer}
 \begin{tcolorbox}[colback=white,colframe=black!60,title={1 hidden layer, 32 units, 500 training steps},height=9.5cm]
 \centering
-% Replace example-image-a with the path to your plot.
-\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{example-image-a}
+\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q1_cheetah_n500_arch1x32.png}
 \end{tcolorbox}
 \begin{tcolorbox}[colback=white,colframe=black!60,title={2 hidden layers, 250 units, 5 training steps},height=9.5cm]
 \centering
-% Replace example-image-a with the path to your plot.
-\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{example-image-a}
+\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q1_cheetah_n5_arch2x250.png}
 \end{tcolorbox}
 \begin{tcolorbox}[colback=white,colframe=black!60,title={2 hidden layers, 250 units, 500 training steps},height=9.5cm]
 \centering
-% Replace example-image-a with the path to your plot.
-\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{example-image-a}
+\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q1_cheetah_n500_arch2x250.png}
 \end{tcolorbox}
 \section*{Problem 2: Action Selection (3.75 points)}
 \begin{tcolorbox}[colback=white,colframe=black!60,title={Random actions versus MPC: training and evaluation returns},height=9.5cm]
 \centering
-% Replace example-image-a with the path to your plot.
-\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{example-image-a}
+\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q2_obstacles.png}
 \end{tcolorbox}
 \section*{Problem 3: Iterative Model Training (3.75 points)}
 \begin{tcolorbox}[colback=white,colframe=black!60,title={Obstacles learning curve},height=9.5cm]
 \centering
-% Replace example-image-a with the path to your plot.
-\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{example-image-a}
+\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q3_obstacles.png}
 \end{tcolorbox}
 \begin{tcolorbox}[colback=white,colframe=black!60,title={Reacher learning curve},height=9.5cm]
 \centering
-% Replace example-image-a with the path to your plot.
-\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{example-image-a}
+\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q3_reacher.png}
 \end{tcolorbox}
 \begin{tcolorbox}[colback=white,colframe=black!60,title={Cheetah learning curve},height=9.5cm]
 \centering
-% Replace example-image-a with the path to your plot.
-\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{example-image-a}
+\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q3_cheetah.png}
 \end{tcolorbox}
 \clearpage
 \section*{Problem 4: Hyperparameter Comparison and Discussion (3.75 points total)}
@@ -61,8 +56,7 @@
 For each comparison, describe the observed trend and explain it in the description block directly below the plot.
 \begin{tcolorbox}[colback=white,colframe=black!60,title={Planning horizon: 5, 15, 30},height=9.5cm]
 \centering
-% Replace example-image-a with the path to your plot.
-\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{example-image-a}
+\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q4_reacher_horizon.png}
 \end{tcolorbox}
 \begin{answer}{Description: planning horizon}
 % Describe the observed trend as the planning horizon changes and explain why it occurs.
@@ -70,8 +64,7 @@ For each comparison, describe the observed trend and explain it in the descripti
 \newpage
 \begin{tcolorbox}[colback=white,colframe=black!60,title={Candidate sequences: 100, 1000},height=9.5cm]
 \centering
-% Replace example-image-a with the path to your plot.
-\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{example-image-a}
+\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q4_reacher_numseq.png}
 \end{tcolorbox}
 \begin{answer}{Description: number of candidate sequences}
 % Describe the observed trend as the number of candidate sequences changes and explain why it occurs.
@@ -79,8 +72,7 @@ For each comparison, describe the observed trend and explain it in the descripti
 \newpage
 \begin{tcolorbox}[colback=white,colframe=black!60,title={Ensemble size: 1, 3, 5},height=9.5cm]
 \centering
-% Replace example-image-a with the path to your plot.
-\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{example-image-a}
+\includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q4_reacher_ensemble.png}
 \end{tcolorbox}
 \begin{answer}{Description: ensemble size}
 % Describe the observed trend as the ensemble size changes and explain why it occurs.
@@ -89,6 +81,6 @@ For each comparison, describe the observed trend and explain it in the descripti
 \subsection*{Discussion (0.75 points)}
 Imagine you have a learned dynamics model that achieves low multi-step prediction error over the MPC planning horizon on held-out trajectories, but MPC using this model performs poorly. Give reasons why this could happen. Answer in 4--6 sentences.
 \begin{answer}{Discussion answer}
-% Write your answer in 4--6 sentences.
+\small Low held-out error only says the model is accurate on the state--action distribution of those trajectories, but the planner searches over many random action sequences and picks the one the model scores highest, so it actively seeks out regions where the model is wrong and optimistic (model exploitation / distribution shift). Small errors in the specific state dimensions the reward depends on, such as velocity or end-effector position, can flip the ranking of candidate sequences even when the average error is low. The planner itself can also be the bottleneck: random shooting with a fixed number of samples covers a high-dimensional action space poorly, and a short horizon makes MPC myopic about rewards beyond it. Finally, the model is evaluated open-loop on held-out actions, while MPC runs closed-loop, where repeated replanning on slightly wrong predictions can drive the system into states the model has never seen.
 \end{answer}
 \end{document}
