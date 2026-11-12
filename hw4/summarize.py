@@ -55,9 +55,11 @@ def main():
             line = '  progress: {}/{} itr'.format(len(walls), n_total)
             if len(walls) >= 2:
                 per_itr = (walls[-1] - walls[0]) / (len(walls) - 1)
-                line += ', {:.1f} min/itr'.format(per_itr / 60)
+                last_itr = walls[-1] - walls[-2]
+                line += ', avg {:.1f} / last {:.1f} min/itr'.format(per_itr / 60, last_itr / 60)
                 if n_total and len(walls) < n_total:
-                    left = (n_total - len(walls)) * per_itr - (time.time() - walls[-1])
+                    # the most recent iteration reflects the current GPU load best
+                    left = (n_total - len(walls)) * last_itr - (time.time() - walls[-1])
                     line += ', ~{:.0f} min left'.format(max(left, 0) / 60)
                 elif n_total and len(walls) >= n_total:
                     line += ', DONE'
