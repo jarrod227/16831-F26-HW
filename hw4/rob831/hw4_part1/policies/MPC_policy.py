@@ -41,6 +41,8 @@ class MPCPolicy(BasePolicy):
         # TODO(Q1) uniformly sample trajectories and return an array of
         # dimensions (num_sequences, horizon, self.ac_dim) in the range
         # [self.low, self.high]
+        random_action_sequences = np.random.uniform(
+            self.low, self.high, size=(num_sequences, horizon, self.ac_dim))
         return random_action_sequences
 
     def evaluate_candidate_sequences(self, candidate_action_sequences, obs):
@@ -49,10 +51,12 @@ class MPCPolicy(BasePolicy):
         #
         # Then, return the mean predictions across all ensembles.
         # Hint: the return value should be an array of shape (N,)
-        for model in self.dyn_models: 
-            pass
+        predicted_rewards_per_ens = []
+        for model in self.dyn_models:
+            predicted_rewards_per_ens.append(
+                self.calculate_sum_of_rewards(obs, candidate_action_sequences, model))
 
-        return TODO
+        return np.mean(predicted_rewards_per_ens, axis=0)
 
     def get_action(self, obs):
         if self.data_statistics is None:
@@ -65,8 +69,8 @@ class MPCPolicy(BasePolicy):
         predicted_rewards = self.evaluate_candidate_sequences(candidate_action_sequences, obs)
 
         # pick the action sequence and return the 1st element of that sequence
-        best_action_sequence = None  # TODO (Q2)
-        action_to_take = None  # TODO (Q2)
+        best_action_sequence = candidate_action_sequences[np.argmax(predicted_rewards)]
+        action_to_take = best_action_sequence[0]
         return action_to_take[None]  # Unsqueeze the first index
 
     def calculate_sum_of_rewards(self, obs, candidate_action_sequences, model):
@@ -82,7 +86,15 @@ class MPCPolicy(BasePolicy):
         :return: numpy array with the sum of rewards for each action sequence.
         The array should have shape [N].
         """
-        sum_of_rewards = None  # TODO (Q2)
+        N = candidate_action_sequences.shape[0]
+        sum_of_rewards = np.zeros(N)
+        # roll all N sequences forward in one batch, one timestep at a time
+        pred_obs = np.tile(obs[None], (N, 1))
+        for t in range(self.horizon):
+            acs_t = candidate_action_sequences[:, t, :]
+            rew_t, _ = self.env.get_reward(pred_obs, acs_t)
+            sum_of_rewards += rew_t
+            pred_obs = model.get_prediction(pred_obs, acs_t, self.data_statistics)
         # For each candidate action sequence, predict a sequence of
         # states for each dynamics model in your ensemble.
         # Once you have a sequence of predicted states from each model in
