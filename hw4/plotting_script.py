@@ -16,6 +16,7 @@ import shutil
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
 HW4_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -44,6 +45,8 @@ def load_scalar(run, tag):
 
 
 def save(fig, out_dir, name):
+    for ax in fig.axes:
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     path = os.path.join(out_dir, name)
     fig.tight_layout()
     fig.savefig(path, dpi=200)
@@ -98,8 +101,11 @@ def plot_q3(data_dir, out_dir):
 
 
 def plot_q4(data_dir, out_dir):
+    # The default configuration (H = 10, K = 1000, N = 3) is exactly the
+    # q4_reacher_numseq1000 run, so it doubles as the H = 10 reference curve.
     groups = [
         ('horizon', 'Planning horizon', [('q4_reacher_horizon5', 'H = 5'),
+                                         ('q4_reacher_numseq1000', 'H = 10 (default; numseq1000 run)'),
                                          ('q4_reacher_horizon15', 'H = 15'),
                                          ('q4_reacher_horizon30', 'H = 30')]),
         ('numseq', 'Number of candidate action sequences', [('q4_reacher_numseq100', 'K = 100'),
