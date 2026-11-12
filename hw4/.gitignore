@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.egg-info/
+data/
+figures/
+logs/
+submit/
+submit.zip
