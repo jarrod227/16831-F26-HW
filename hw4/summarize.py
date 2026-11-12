@@ -7,11 +7,20 @@ Print a compact text summary of every run in data/ so it can be pasted into chat
 import glob
 import os
 import sys
+import time
 
 import numpy as np
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
 DATA = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'rob831', 'data')
+N_ITER = {'q2_': 1, 'q3_obstacles': 12, 'q3_reacher': 15, 'q3_cheetah': 20, 'q4_': 15}
+
+
+def total_iters(name):
+    for key, n in N_ITER.items():
+        if key in name:
+            return n
+    return None
 
 
 def fmt(values, spec):
@@ -40,6 +49,20 @@ def main():
         ea = EventAccumulator(events[0], size_guidance={'scalars': 0})
         ea.Reload()
         available = ea.Tags()['scalars']
+        if 'Eval_AverageReturn' in available:
+            walls = [e.wall_time for e in ea.Scalars('Eval_AverageReturn')]
+            n_total = total_iters(name)
+            line = '  progress: {}/{} itr'.format(len(walls), n_total)
+            if len(walls) >= 2:
+                per_itr = (walls[-1] - walls[0]) / (len(walls) - 1)
+                line += ', {:.1f} min/itr'.format(per_itr / 60)
+                if n_total and len(walls) < n_total:
+                    left = (n_total - len(walls)) * per_itr - (time.time() - walls[-1])
+                    line += ', ~{:.0f} min left'.format(max(left, 0) / 60)
+                elif n_total and len(walls) >= n_total:
+                    line += ', DONE'
+            line += ', last update {:.0f} min ago'.format((time.time() - walls[-1]) / 60)
+            print(line)
         tags = ['Train_AverageReturn', 'Eval_AverageReturn'] + [t for t in available if 'Loss' in t]
         for tag in tags:
             if tag in available:
