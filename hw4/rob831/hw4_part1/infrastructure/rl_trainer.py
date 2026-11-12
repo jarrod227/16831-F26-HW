@@ -299,6 +299,7 @@ class RL_Trainer(object):
             plt.plot(true_states[:,i], 'g')
             plt.plot(pred_states[:,i], 'r')
         self.fig.suptitle('MPE: ' + str(mpe))
+        np.savetxt(self.params['logdir']+'/itr_'+str(itr)+'_mpe.txt', [mpe])
         self.fig.savefig(self.params['logdir']+'/itr_'+str(itr)+'_predictions.png', dpi=200, bbox_inches='tight')
 
         # plot all intermediate losses during this iteration
