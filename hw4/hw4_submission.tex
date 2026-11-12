@@ -59,7 +59,7 @@ For each comparison, describe the observed trend and explain it in the descripti
 \includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q4_reacher_horizon.png}
 \end{tcolorbox}
 \begin{answer}{Description: planning horizon}
-\small Longer horizons hurt: averaged over the last five iterations, $H{=}5$ and the default $H{=}10$ reach about $-272$ and $-265$, $H{=}15$ about $-288$, and $H{=}30$ about $-335$. The planner rolls the learned model forward open-loop, so one-step errors compound and the predicted return of long sequences becomes unreliable; in addition, the same 1000 random sequences must cover a space of dimension $H\times|\mathcal A|$, so good long sequences are rarely sampled. Reacher's reward is dense (distance to the goal at every step), so a short horizon already gives a useful signal; $H{=}5$ is only clearly worse at iteration 0 ($-1005$ vs.\ $-530$), when the model is poor and myopic planning hurts most.
+\small There is a sweet spot at a medium horizon. Averaged over the last ten iterations, the default $H{=}10$ is best ($\approx-268$), $H{=}5$ is slightly worse ($\approx-284$), and longer horizons degrade steadily: $H{=}15$ reaches $\approx-296$ and $H{=}30$ only $\approx-350$. A very short horizon is myopic, which matters most early on ($H{=}5$ scores $-1005$ at iteration 0 vs.\ $-530$ for $H{=}10$). Long horizons suffer from two effects: the learned model is rolled out open-loop, so one-step errors compound and the predicted return of long sequences becomes unreliable; and the same 1000 random sequences must cover a space of dimension $H\times|\mathcal A|$, so good long sequences are rarely sampled.
 \end{answer}
 \newpage
 \begin{tcolorbox}[colback=white,colframe=black!60,title={Candidate sequences: 100, 1000},height=9.5cm]
@@ -67,7 +67,7 @@ For each comparison, describe the observed trend and explain it in the descripti
 \includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q4_reacher_numseq.png}
 \end{tcolorbox}
 \begin{answer}{Description: number of candidate sequences}
-\small More candidates help: 1000 sequences plateau around $-265$, while 100 sequences stay around $-311$ (last-five-iteration averages) for the whole run. Random shooting can only return the best of the sampled sequences, so with 10$\times$ fewer samples the chosen sequence is further from the optimum at every MPC step. Both runs reach a similar model training loss, so the gap comes from the planner rather than the model. The price is proportionally more computation per action.
+\small More candidates help clearly: with 1000 sequences the return stabilizes around $-268$ (last-ten-iteration average), while with 100 sequences it stays around $-316$ for the whole run. Random shooting can only return the best of the sampled sequences, so with 10$\times$ fewer samples the chosen sequence is further from the optimum at every MPC step. Both runs reach a similar model training loss, so the gap comes from the planner rather than the model. The price is proportionally more computation per action.
 \end{answer}
 \newpage
 \begin{tcolorbox}[colback=white,colframe=black!60,title={Ensemble size: 1, 3, 5},height=9.5cm]
@@ -75,7 +75,7 @@ For each comparison, describe the observed trend and explain it in the descripti
 \includegraphics[width=\linewidth,height=8cm,keepaspectratio]{figures/q4_reacher_ensemble.png}
 \end{tcolorbox}
 \begin{answer}{Description: ensemble size}
-\small The effect is small but consistent: last-five-iteration averages are about $-275$ for $N{=}1$, $-265$ for $N{=}3$ and $-263$ for $N{=}5$. The clearer difference is stability: the single model shows large dips (e.g.\ $-327$ and $-362$), while the $N{=}3$ and $N{=}5$ curves are smoother. Averaging the predicted returns of independently initialized models reduces variance and makes it harder for the planner to exploit one model's optimistic error in poorly covered states. The gain saturates beyond $N{=}3$, since each model sees fewer samples and extra models mainly add computation.
+\small Going from one model to an ensemble helps mainly through stability. Over the last ten iterations the single model averages $\approx-290$ with large dips (e.g.\ $-327$ and $-362$) and a standard deviation of about 30, while $N{=}3$ and $N{=}5$ average $\approx-268$ and $\approx-271$ with standard deviations of about 17--19. Averaging the predicted returns of independently initialized models reduces variance and makes it harder for the planner to exploit one model's optimistic error in poorly covered states. The gain saturates beyond $N{=}3$: each model sees fewer samples, and extra models mainly add computation.
 \end{answer}
 \newpage
 \subsection*{Discussion (0.75 points)}
